@@ -1,0 +1,123 @@
+---
+title: "county"
+author: "Tao Huang"
+date: "February 7, 2019"
+output: html_document
+---
+
+#create a column "state" (placeholder after separating the columnState and county)
+```{r}
+#original the table of  the mosquito presence record from Johnson et al. 2017
+county_mosquito<-read.csv("county_mosquito.csv",header=T,sep=',')
+dim(county_mosquito)
+county_mosquito$state<-" "
+dim(county_mosquito)
+head(county_mosquito)
+i<-which(county_mosquito$Sources==""&county_mosquito$X.1=="")
+for (j in i)
+{
+county_mosquito[j,]$state<-as.character(county_mosquito[j,]$X)
+}
+head(county_mosquito)
+```
+#add state name to each row
+```{r}
+# if cell i empty, fill it with the cell above
+ 
+for (k in c(2:1649))
+{
+  if (county_mosquito[k,]$state==" ")
+{
+    print(k)
+    county_mosquito[k,]$state<-as.character(county_mosquito[(k-1),]$state)
+}
+    }
+# 
+# if (county_mosquito$state=="")
+# {
+#   county_mosquito
+# }
+head(county_mosquito)
+```
+#add a column "state_county" to match the shp
+```{r}
+county_mosquito$state_county<-paste(county_mosquito$X,"_",county_mosquito$state,sep='')
+head(county_mosquito)
+```
+
+
+```{r}
+
+dim(county_mosquito[county_mosquito$Sources=="",])
+#save only Aedes albopictus positive
+county_mosquito_p<-county_mosquito[!county_mosquito$Sources=="",]
+dim(county_mosquito_p)
+#only Aedes albopictus and remove the wrong head
+county_mosquito_p2<-county_mosquito_p[-1,-3]
+dim(county_mosquito_p2)
+head(county_mosquito_p2)
+```
+#add state names to the shp table
+```{r}
+#county_2017.dbf
+#save as county_2017.csv
+#state_id.csv is from FIPS Codes for the States and the District of Columbia
+county_shp<-read.csv("county_2017.csv",header=T,sep=',')
+head(county_shp)
+state_id<-read.csv("state_id.csv",header=T,sep=',')
+head(state_id)
+county_shp_m<-merge(county_shp,state_id,by.x="STATEFP",by.y="STATE")
+head(county_shp_m)
+```
+#add county state comb col in the shp table
+```{r}
+head(county_shp_m)
+county_shp_m$c_s<-paste(county_shp_m$NAME,"_",county_shp_m$STATE_NAME,sep='')
+head(county_shp_m)
+```
+#check the missing county
+```{r}
+missing<-county_mosquito_p2[county_mosquito_p2$state_county%in%county_shp_m$c_s==F,]
+
+```
+
+```{r}
+library(ggmap)
+library(googleway)
+
+lat_lon<-geocode(as.character(missing$state_county), source = "dsk")
+lat_lon$lat<-lat_lon$lat
+lat_lon$lon<-lat_lon$lon
+
+```
+
+```{r}
+head(missing)
+head(lat_lon)
+missing$lat<-lat_lon$lat
+missing$lon<-lat_lon$lon
+head(missing)
+write.csv(missing,file="missing_lat_lon.csv")
+```
+
+```{r}
+#export to missing_lat_lon.shp
+#intersect with county.shp
+#to get the names of the missing county in the county.shp, export the intersected shp to missing_cty.dbf 
+#save it as missing_cty.csv
+
+```
+
+
+```{r}
+mosquito_county_merge<-merge(county_mosquito_p2,county_shp_m,by.x="state_county",by.y="c_s")
+dim(county_shp_m)
+dim(county_mosquito_p2)
+dim(mosquito_county_merge)
+```
+
+```{r}
+head(mosquito_county_merge)
+write.csv(mosquito_county_merge,file="mosquito_county_merge.csv")
+```
+
